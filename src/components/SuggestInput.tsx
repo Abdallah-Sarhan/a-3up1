@@ -10,6 +10,7 @@ interface SuggestInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
 export function SuggestInput({ suggestions, onSelect, className, onChange, onKeyDown, onFocus, onBlur, ...props }: SuggestInputProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [composing, setComposing] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLDivElement>(null);
 
@@ -66,7 +67,7 @@ export function SuggestInput({ suggestions, onSelect, className, onChange, onKey
         {...props}
         className={className}
         onChange={(e) => {
-          setOpen(true);
+          if (!composing) setOpen(true);
           onChange?.(e);
         }}
         onFocus={(e) => {
@@ -82,6 +83,14 @@ export function SuggestInput({ suggestions, onSelect, className, onChange, onKey
           onBlur?.(e);
         }}
         onKeyDown={handleKeyDown}
+        onCompositionStart={() => {
+          setComposing(true);
+          setOpen(false);
+        }}
+        onCompositionEnd={() => {
+          setComposing(false);
+          setOpen(true);
+        }}
         autoComplete="off"
       />
       {visible && (

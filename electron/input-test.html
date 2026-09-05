@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>فحص الإدخال — Ward 39</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f4f8f9; color: #17233b; font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+      main { width: min(560px, calc(100vw - 40px)); padding: 32px; border: 1px solid #d7e2e5; border-radius: 8px; background: #fff; box-shadow: 0 8px 30px rgba(23, 35, 59, .08); }
+      h1 { margin: 0 0 8px; font-size: 24px; }
+      p { margin: 0 0 22px; color: #526172; line-height: 1.7; }
+      label { display: block; margin: 14px 0 6px; font-weight: 600; }
+      input, select, button { width: 100%; min-height: 44px; border: 1px solid #aebfc5; border-radius: 6px; padding: 8px 12px; font: inherit; background: #fff; }
+      button { margin-top: 20px; border-color: #087f8c; background: #087f8c; color: #fff; font-weight: 700; cursor: pointer; }
+      button:disabled { opacity: .45; cursor: default; }
+      #status { margin-top: 14px; min-height: 24px; color: #087f8c; font-weight: 600; }
+      small { display: block; margin-top: 12px; color: #71808d; direction: ltr; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>فحص الكتابة والاختيار</h1>
+      <p>اكتب كلمة قصيرة بالعربية أو الإنجليزية، ثم اختر أحد الخيارات واضغط متابعة. يظهر هذا الفحص مرة واحدة لكل وضع تشغيل.</p>
+      <label for="typing">الكتابة</label>
+      <input id="typing" autocomplete="off" autofocus placeholder="اكتب هنا" />
+      <label for="choice">الاختيار</label>
+      <select id="choice">
+        <option value="">اختر</option>
+        <option value="one">الخيار الأول</option>
+        <option value="two">الخيار الثاني</option>
+      </select>
+      <button id="continue" disabled>متابعة إلى البرنامج</button>
+      <div id="status" aria-live="polite"></div>
+      <small id="mode"></small>
+    </main>
+    <script>
+      const typing = document.getElementById("typing");
+      const choice = document.getElementById("choice");
+      const button = document.getElementById("continue");
+      const status = document.getElementById("status");
+      const mode = document.getElementById("mode");
+      let composing = false;
+
+      function record(kind) {
+        window.ward39Desktop?.recordInteraction(kind);
+      }
+      function validate() {
+        button.disabled = composing || !typing.value.trim() || !choice.value;
+        status.textContent = button.disabled ? "" : "الفحص ناجح — يمكنك المتابعة";
+      }
+      typing.addEventListener("focus", () => record("self-test input focus"));
+      typing.addEventListener("compositionstart", () => { composing = true; record("self-test composition start"); });
+      typing.addEventListener("compositionend", () => { composing = false; record("self-test composition end"); validate(); });
+      typing.addEventListener("input", () => { record("self-test input"); if (!composing) validate(); });
+      choice.addEventListener("change", () => { record("self-test selection"); validate(); });
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        status.textContent = "جارٍ فتح البرنامج…";
+        await window.ward39Desktop?.completeInputTest();
+      });
+      window.ward39Desktop?.getRuntimeInfo().then((info) => { mode.textContent = info; });
+      setInterval(() => window.ward39Desktop?.heartbeat("self-test"), 1000);
+    </script>
+  </body>
+</html>
