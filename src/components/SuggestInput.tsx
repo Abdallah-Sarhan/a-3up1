@@ -33,6 +33,10 @@ export function SuggestInput({ suggestions, onSelect, className, onChange, onKey
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.nativeEvent.isComposing || composing) {
+      onKeyDown?.(e);
+      return;
+    }
     if (!visible) {
       onKeyDown?.(e);
       return;
