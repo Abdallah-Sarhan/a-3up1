@@ -13,7 +13,6 @@ const MODE = explicitStandard ? "standard" : explicitCompatibility || compatibil
 if (MODE === "compatibility") {
   app.disableHardwareAcceleration();
   app.commandLine.appendSwitch("disable-gpu");
-  app.commandLine.appendSwitch("disable-software-rasterizer", "false");
 }
 app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion,UseEcoQoSForBackgroundProcess");
 

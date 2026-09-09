@@ -98,6 +98,7 @@ export function PatientPicker({
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.nativeEvent.isComposing || composing) return;
     if (!open) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
