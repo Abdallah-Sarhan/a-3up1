@@ -119,12 +119,12 @@ function BatchPrintPage() {
     .filter((p) => p.id != null)
     .slice()
     .sort((a, b) => {
-      const na = Number(String(a.fileNo ?? "").replace(/\D/g, ""));
-      const nb = Number(String(b.fileNo ?? "").replace(/\D/g, ""));
-      const va = Number.isFinite(na) ? na : Number.POSITIVE_INFINITY;
-      const vb = Number.isFinite(nb) ? nb : Number.POSITIVE_INFINITY;
+      const na = Number(String(a.folderNo ?? "").replace(/\D/g, ""));
+      const nb = Number(String(b.folderNo ?? "").replace(/\D/g, ""));
+      const va = Number.isFinite(na) && String(a.folderNo ?? "").trim() !== "" ? na : Number.POSITIVE_INFINITY;
+      const vb = Number.isFinite(nb) && String(b.folderNo ?? "").trim() !== "" ? nb : Number.POSITIVE_INFINITY;
       if (va !== vb) return va - vb;
-      return String(a.fileNo ?? "").localeCompare(String(b.fileNo ?? ""));
+      return String(a.folderNo ?? "").localeCompare(String(b.folderNo ?? ""));
     });
 
   return (
