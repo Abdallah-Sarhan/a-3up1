@@ -6,6 +6,7 @@ import { Download, FileSpreadsheet, Plus, Search, Upload, DatabaseBackup } from 
 import { db, dbReady } from "@/lib/db";
 import { useLang } from "@/lib/i18n";
 import { Button, Card, Input } from "@/components/ui-kit";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   backupToJson,
   exportPatientsToExcel,
@@ -16,21 +17,23 @@ import {
 export const Route = createFileRoute("/patients/")({
   head: () => ({
     meta: [
-      { title: "سجل مرضى جناح 39 — Ward 39 Patient Registry" },
+      { title: "سجل المرضى النشطين — جناح 39 | Active Patients — Ward 39" },
       {
         name: "description",
         content:
-          "Offline desktop registry for Ward 39 (KCMH): register patients, print patient data, SBAR handover, vital signs, nurses notes and care plans.",
+          "Browse and search active Ward 39 patients by name, file number or ID, open a patient file, and import, export or back up patient records.",
       },
-      { property: "og:title", content: "Ward 39 Patient Registry" },
+      { property: "og:title", content: "Active Patients — Ward 39" },
       {
         property: "og:description",
         content:
-          "Offline patient registry for Ward 39: registration, printing, SBAR, vitals, nursing notes and care plans.",
+          "Search active Ward 39 patient records, open individual files, and import, export or back up the registry.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "/patients" },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: "/patients" }],
   }),
   component: PatientsPage,
 });
@@ -38,6 +41,7 @@ export const Route = createFileRoute("/patients/")({
 function PatientsPage() {
   const { t } = useLang();
   const [query, setQuery] = useState("");
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const deferredQuery = useDeferredValue(query);
   const xlsxInput = useRef<HTMLInputElement>(null);
   const jsonInput = useRef<HTMLInputElement>(null);
@@ -74,11 +78,17 @@ function PatientsPage() {
     }
   }
 
-  async function onRestore(e: React.ChangeEvent<HTMLInputElement>) {
+  function onRestore(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!window.confirm(t("restoreWarn"))) return;
+    setRestoreFile(file);
+  }
+
+  async function confirmRestore() {
+    const file = restoreFile;
+    setRestoreFile(null);
+    if (!file) return;
     try {
       await restoreFromJson(file);
       toast.success(t("restoreDone"));
@@ -86,6 +96,7 @@ function PatientsPage() {
       toast.error(t("importFail"));
     }
   }
+
 
   return (
     <div className="space-y-4">
@@ -133,6 +144,8 @@ function PatientsPage() {
       <div className="relative">
         <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
+          id="patients-search"
+          aria-label={t("search")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("search")}
@@ -192,7 +205,18 @@ function PatientsPage() {
           </table>
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={restoreFile != null}
+        title={t("restoreJson")}
+        message={t("restoreWarn")}
+        confirmLabel={t("restoreJson")}
+        destructive
+        onConfirm={() => void confirmRestore()}
+        onCancel={() => setRestoreFile(null)}
+      />
     </div>
+
   );
 }
 

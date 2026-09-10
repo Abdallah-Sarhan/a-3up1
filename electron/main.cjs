@@ -3,19 +3,61 @@ const path = require("node:path");
 const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
 
-const explicitCompatibility = process.argv.includes("--compatibility-mode");
-const explicitStandard = process.argv.includes("--standard-mode");
-const compatibilityByName = /compatib/i.test(path.basename(process.execPath));
-const MODE = explicitStandard ? "standard" : explicitCompatibility || compatibilityByName ? "compatibility" : "standard";
+const ROOT = path.join(__dirname, "..", "dist-electron");
+const INDEX = path.join(ROOT, "electron.html");
+const PROBE = path.join(__dirname, "probe.html");
+const DIAGNOSTIC_NAME = "ward39-diagnostics.log";
+const APP_URL = "app://ward39/electron.html";
 
-// Keep the two rendering paths genuinely independent. The standard package
-// uses Chromium defaults; the compatibility package opts into software only.
-if (MODE === "compatibility") {
+// ---------------------------------------------------------------------------
+// Rendering mode
+//
+// Standard (GPU) rendering is the default: fully disabling the GPU was tried on
+// the ward laptop and did not fix the frozen fields. A software-rendering
+// compatibility mode is kept as a fallback and is selected automatically only
+// when the start-up input check fails, or manually with --compat.
+// ---------------------------------------------------------------------------
+const MODE_FILE = () => path.join(app.getPath("userData"), "render-mode.json");
+
+function readModeState() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(MODE_FILE(), "utf8"));
+    return {
+      mode: raw.mode === "software" ? "software" : "standard",
+      verified: Boolean(raw.verified),
+      switched: Boolean(raw.switched),
+    };
+  } catch {
+    return { mode: "standard", verified: false, switched: false };
+  }
+}
+
+function writeModeState(state) {
+  try {
+    fs.mkdirSync(app.getPath("userData"), { recursive: true });
+    fs.writeFileSync(MODE_FILE(), JSON.stringify(state), "utf8");
+  } catch {
+    // Never block the app because a preference could not be stored.
+  }
+}
+
+const forcedCompat = process.argv.includes("--compat") || process.argv.includes("--software");
+const forcedStandard = process.argv.includes("--standard");
+const stored = readModeState();
+const MODE = forcedCompat ? "software" : forcedStandard ? "standard" : stored.mode;
+
+if (MODE === "software") {
+  // Full, consistent software path — mixing partial GPU switches is what makes
+  // Chromium stall on some Windows 10 display drivers.
   app.disableHardwareAcceleration();
   app.commandLine.appendSwitch("disable-gpu");
+  app.commandLine.appendSwitch("disable-gpu-compositing");
+  app.commandLine.appendSwitch("in-process-gpu");
+  app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
 }
-app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion,UseEcoQoSForBackgroundProcess");
 
+// Chromium does not persist IndexedDB for file:// pages, so the app is served
+// from a custom "app://" scheme with a stable, secure origin.
 protocol.registerSchemesAsPrivileged([
   {
     scheme: "app",
@@ -23,32 +65,44 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-const ROOT = path.join(__dirname, "..", "dist-electron");
-const INDEX = path.join(ROOT, "electron.html");
-const INPUT_TEST = path.join(__dirname, "input-test.html");
-const DIAGNOSTIC_NAME = "Ward39-input-diagnostics.txt";
-const TEST_MARKER = `input-test-${MODE}.ok`;
-let mainWindow;
-let lastHeartbeat = Date.now();
-let lastArea = "startup";
-let recoveryStarted = false;
-let watchdog;
-
-function diagnosticPaths() {
-  return [
-    path.join(app.getPath("userData"), DIAGNOSTIC_NAME),
-    path.join(app.getPath("documents"), DIAGNOSTIC_NAME),
-  ];
+function diagnosticPath() {
+  return path.join(app.getPath("userData"), DIAGNOSTIC_NAME);
 }
 
 function recordDiagnostic(message) {
-  const safe = String(message).replace(/[\r\n]+/g, " ").slice(0, 2000);
-  for (const file of diagnosticPaths()) {
-    try {
-      fs.appendFileSync(file, `${new Date().toISOString()} mode=${MODE} ${safe}\n`);
-    } catch {
-      // Diagnostics must never interrupt patient data entry.
-    }
+  try {
+    fs.appendFileSync(diagnosticPath(), `${new Date().toISOString()} [${MODE}] ${message}\n`);
+  } catch {
+    // Diagnostics must never interfere with patient data entry.
+  }
+}
+
+function diagnosticsReport() {
+  const header = [
+    "Ward 39 desktop diagnostics",
+    `Generated: ${new Date().toISOString()}`,
+    `Rendering mode: ${MODE}`,
+    `Electron: ${process.versions.electron}`,
+    `Chrome: ${process.versions.chrome}`,
+    `Windows: ${process.getSystemVersion()}`,
+    "No patient data is included.",
+    "",
+  ].join("\n");
+  let events = "No renderer events were recorded.\n";
+  try {
+    events = fs.readFileSync(diagnosticPath(), "utf8");
+  } catch {
+    // The log is created only after an event occurs.
+  }
+  return header + events;
+}
+
+function autoSaveReport(reason) {
+  try {
+    const target = path.join(app.getPath("documents"), `ward39-freeze-${Date.now()}.log`);
+    fs.writeFileSync(target, `Reason: ${reason}\n\n${diagnosticsReport()}`, "utf8");
+  } catch {
+    // Best effort only.
   }
 }
 
@@ -61,27 +115,51 @@ function resolveRequest(url) {
   return file;
 }
 
-function testPassed() {
-  return fs.existsSync(path.join(app.getPath("userData"), TEST_MARKER));
-}
-
-function loadApplication(win) {
-  lastArea = "application";
-  lastHeartbeat = Date.now();
-  return win.loadURL("app://ward39/electron.html");
-}
-
+/** Restart once in the other rendering mode instead of leaving a frozen window. */
 function switchModeAndRelaunch(reason) {
-  if (recoveryStarted) return;
-  recoveryStarted = true;
-  recordDiagnostic(`automatic recovery: ${reason}; lastArea=${lastArea}; silenceMs=${Date.now() - lastHeartbeat}`);
-  const nextArg = MODE === "standard" ? "--compatibility-mode" : "--standard-mode";
-  const args = process.argv.slice(1).filter((arg) => arg !== "--compatibility-mode" && arg !== "--standard-mode");
-  app.relaunch({ args: [...args, nextArg, "--recovery-attempt"] });
+  const next = MODE === "software" ? "standard" : "software";
+  const state = readModeState();
+  if (state.switched) {
+    recordDiagnostic(`already switched once; staying in ${MODE} (${reason})`);
+    return false;
+  }
+  recordDiagnostic(`switching rendering mode to ${next}: ${reason}`);
+  autoSaveReport(reason);
+  writeModeState({ mode: next, verified: false, switched: true });
+  app.relaunch();
   app.exit(0);
+  return true;
 }
 
-function createWindow() {
+let mainWindow = null;
+let lastHeartbeat = Date.now();
+let watchdog = null;
+let recovered = false;
+
+function startWatchdog() {
+  clearInterval(watchdog);
+  lastHeartbeat = Date.now();
+  watchdog = setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (Date.now() - lastHeartbeat < 15000) return;
+    clearInterval(watchdog);
+    recordDiagnostic("no renderer heartbeat for 15s");
+    if (recovered) {
+      switchModeAndRelaunch("renderer heartbeat stopped twice");
+      return;
+    }
+    recovered = true;
+    autoSaveReport("renderer heartbeat stopped");
+    try {
+      mainWindow.webContents.reload();
+      startWatchdog();
+    } catch {
+      switchModeAndRelaunch("reload failed");
+    }
+  }, 5000);
+}
+
+function createWindow(startWithProbe) {
   const win = new BrowserWindow({
     width: 1400,
     height: 950,
@@ -98,79 +176,94 @@ function createWindow() {
     },
   });
   mainWindow = win;
-  recordDiagnostic(`window created; Electron=${process.versions.electron}; Chrome=${process.versions.chrome}; Windows=${process.getSystemVersion()}`);
 
   win.webContents.on("render-process-gone", (_event, details) => {
     recordDiagnostic(`renderer stopped: ${details.reason}; exitCode=${details.exitCode}`);
-    if (!process.argv.includes("--recovery-attempt")) switchModeAndRelaunch("renderer stopped");
+    autoSaveReport(`renderer stopped: ${details.reason}`);
   });
   win.on("unresponsive", () => {
-    recordDiagnostic(`window unresponsive; lastArea=${lastArea}`);
-    if (!process.argv.includes("--recovery-attempt")) switchModeAndRelaunch("window unresponsive");
+    recordDiagnostic("window became unresponsive");
+    if (!recovered) {
+      recovered = true;
+      autoSaveReport("window became unresponsive");
+      try {
+        win.webContents.reload();
+      } catch {
+        switchModeAndRelaunch("unresponsive + reload failed");
+      }
+    } else {
+      switchModeAndRelaunch("window unresponsive again");
+    }
   });
-  win.on("responsive", () => recordDiagnostic("window responsive again"));
-  win.webContents.on("did-fail-load", (_event, code, description) => recordDiagnostic(`page load failed: ${code}; ${description}`));
+  win.on("responsive", () => recordDiagnostic("window became responsive again"));
+  win.webContents.on("did-fail-load", (_event, code, description) => {
+    recordDiagnostic(`page load failed: ${code}; ${description}`);
+  });
+  win.on("closed", () => {
+    if (mainWindow === win) mainWindow = null;
+  });
 
-  if (testPassed()) void loadApplication(win);
-  else {
-    lastArea = "self-test";
-    void win.loadFile(INPUT_TEST);
+  if (startWithProbe) {
+    let settled = false;
+    const pass = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      recordDiagnostic("input check passed");
+      writeModeState({ mode: MODE, verified: true, switched: stored.switched });
+      win.loadURL(APP_URL);
+      startWatchdog();
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      ipcMain.removeListener("ward39:probe-ok", pass);
+      if (!switchModeAndRelaunch("input check timed out")) {
+        // Already tried both modes: continue anyway so the ward is not blocked.
+        writeModeState({ mode: MODE, verified: true, switched: true });
+        win.loadURL(APP_URL);
+        startWatchdog();
+      }
+    }, 9000);
+    ipcMain.once("ward39:probe-ok", pass);
+    win.loadFile(PROBE);
+    return;
   }
+
+  win.loadURL(APP_URL);
+  startWatchdog();
 }
 
 app.whenReady().then(() => {
-  protocol.handle("app", (request) => net.fetch(pathToFileURL(resolveRequest(request.url)).toString()));
+  protocol.handle("app", (request) =>
+    net.fetch(pathToFileURL(resolveRequest(request.url)).toString()),
+  );
 
-  ipcMain.handle("ward39:runtime-info", () => `Mode: ${MODE} · Electron ${process.versions.electron} · Windows ${process.getSystemVersion()}`);
-  ipcMain.handle("ward39:input-test-complete", async () => {
-    try {
-      fs.writeFileSync(path.join(app.getPath("userData"), TEST_MARKER), new Date().toISOString(), "utf8");
-    } catch (error) {
-      recordDiagnostic(`could not save input-test marker: ${error}`);
-    }
-    recordDiagnostic("input self-test completed successfully");
-    if (mainWindow && !mainWindow.isDestroyed()) await loadApplication(mainWindow);
-    return true;
-  });
   ipcMain.handle("ward39:export-diagnostics", async () => {
     const result = await dialog.showSaveDialog({
       title: "حفظ تقرير تشخيص Ward 39",
       defaultPath: path.join(app.getPath("documents"), DIAGNOSTIC_NAME),
-      filters: [{ name: "Text file", extensions: ["txt", "log"] }],
+      filters: [{ name: "Log file", extensions: ["log", "txt"] }],
     });
     if (result.canceled || !result.filePath) return false;
-    let events = "No events were recorded.\n";
-    try { events = fs.readFileSync(diagnosticPaths()[0], "utf8"); } catch {}
-    fs.writeFileSync(result.filePath, `Ward 39 desktop diagnostics\nMode: ${MODE}\nElectron: ${process.versions.electron}\nChrome: ${process.versions.chrome}\nWindows: ${process.getSystemVersion()}\nNo patient data is included.\n\n${events}`, "utf8");
+    fs.writeFileSync(result.filePath, diagnosticsReport(), "utf8");
     return true;
   });
-  ipcMain.on("ward39:renderer-error", (_event, message) => recordDiagnostic(`renderer error: ${message}`));
-  ipcMain.on("ward39:heartbeat", (_event, area) => {
-    lastHeartbeat = Date.now();
-    lastArea = String(area).slice(0, 80);
+  ipcMain.on("ward39:renderer-error", (_event, message) => {
+    recordDiagnostic(String(message).replace(/[\r\n]+/g, " ").slice(0, 2000));
   });
-  ipcMain.on("ward39:interaction", (_event, kind) => {
+  ipcMain.on("ward39:heartbeat", () => {
     lastHeartbeat = Date.now();
-    recordDiagnostic(`interaction: ${kind}`);
   });
 
-  watchdog = setInterval(() => {
-    if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isFocused()) return;
-    const silence = Date.now() - lastHeartbeat;
-    if (silence > 10000 && !process.argv.includes("--recovery-attempt")) {
-      switchModeAndRelaunch(`heartbeat stopped for ${silence}ms`);
-    }
-  }, 2500);
+  recordDiagnostic("app started");
+  createWindow(!readModeState().verified);
 
-  createWindow();
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(false);
   });
 });
 
-app.on("before-quit", () => {
-  if (watchdog) clearInterval(watchdog);
-});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });

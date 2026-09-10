@@ -151,14 +151,6 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
-
-  html.ward39-desktop *,
-  html.ward39-desktop *::before,
-  html.ward39-desktop *::after {
-    backdrop-filter: none !important;
-    transition-duration: 0s !important;
-    animation-duration: 0s !important;
-  }
 }
 
 /* Print: A4 sheets, hide everything except the print sheet content */

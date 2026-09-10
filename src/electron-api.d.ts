@@ -5,10 +5,9 @@ declare global {
     ward39Desktop?: {
       exportDiagnostics: () => Promise<boolean>;
       reportError: (message: string) => void;
-      heartbeat: (area: string) => void;
-      recordInteraction: (kind: string) => void;
-      completeInputTest: () => Promise<boolean>;
-      getRuntimeInfo: () => Promise<string>;
+      probeOk?: () => void;
+      heartbeat: () => void;
     };
+
   }
 }

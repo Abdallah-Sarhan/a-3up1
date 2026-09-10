@@ -29,9 +29,7 @@ export function PatientPicker({
 }) {
   const { t } = useLang();
   const [query, setQuery] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [composing, setComposing] = useState(false);
   const [active, setActive] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -45,7 +43,7 @@ export function PatientPicker({
 
   const matches = useMemo(() => {
     if (!patients) return [];
-    const q = searchQuery.trim().toLowerCase();
+    const q = query.trim().toLowerCase();
     const list = !q
       ? patients
       : patients.filter(
@@ -55,13 +53,7 @@ export function PatientPicker({
             p.cid.toLowerCase().includes(q),
         );
     return list.slice(0, 50);
-  }, [patients, searchQuery]);
-
-  useEffect(() => {
-    if (composing) return;
-    const timer = window.setTimeout(() => setSearchQuery(query), 180);
-    return () => window.clearTimeout(timer);
-  }, [composing, query]);
+  }, [patients, query]);
 
   useEffect(() => {
     setActive(-1);
@@ -85,7 +77,6 @@ export function PatientPicker({
   function pick(p: Patient) {
     onChange(p.id!);
     setQuery("");
-    setSearchQuery("");
     setOpen(false);
     setActive(-1);
   }
@@ -93,12 +84,10 @@ export function PatientPicker({
   function clear() {
     onChange("");
     setQuery("");
-    setSearchQuery("");
     setOpen(false);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.nativeEvent.isComposing || composing) return;
     if (!open) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -128,23 +117,13 @@ export function PatientPicker({
         className="ps-9 pe-9"
         onChange={(e) => {
           setQuery(e.target.value);
-          if (!composing) setOpen(true);
+          setOpen(true);
         }}
         onFocus={() => {
           setQuery("");
           setOpen(true);
         }}
         onKeyDown={onKeyDown}
-        onCompositionStart={() => {
-          setComposing(true);
-          setOpen(false);
-        }}
-        onCompositionEnd={(e) => {
-          setComposing(false);
-          setQuery(e.currentTarget.value);
-          setSearchQuery(e.currentTarget.value);
-          setOpen(true);
-        }}
         autoComplete="off"
         role="combobox"
         aria-expanded={open}
