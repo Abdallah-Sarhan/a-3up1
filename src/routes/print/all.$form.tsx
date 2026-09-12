@@ -96,6 +96,7 @@ function BatchPrintPage() {
   const form = getPrintForm(formKey);
   const patients = useActivePatients();
   const [guide, setGuide] = useState(false);
+  const [copies, setCopies] = useState(1);
   const [dx, setDx] = useState(0);
   const [dy, setDy] = useState(0);
   const [fontScale, setFontScale] = useState(1);
