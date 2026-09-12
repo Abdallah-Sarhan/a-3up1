@@ -195,6 +195,17 @@ function BatchPrintPage() {
               </label>
             </>
           ) : null}
+          <label className="flex items-center gap-1 text-sm">
+            {lang === "ar" ? "عدد النسخ" : "Copies"}
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={copies}
+              onChange={(e) => setCopies(Math.min(10, Math.max(1, Number(e.target.value) || 1)))}
+              className="h-8 w-14 rounded-md border border-input px-1"
+            />
+          </label>
           <Button size="sm" onClick={() => window.print()} disabled={list.length === 0}>
             <Printer />
             {t("printAll")}
