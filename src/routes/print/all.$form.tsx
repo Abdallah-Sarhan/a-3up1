@@ -235,19 +235,21 @@ function BatchPrintPage() {
       ) : list.length === 0 ? (
         <p className="p-10 text-center text-muted-foreground print:hidden">{t("noEntries")}</p>
       ) : (
-        list.map((p, i) => (
-          <Sheet
-            key={p.id}
-            form={form}
-            patient={p}
-            guide={guide}
-            dx={dx}
-            dy={dy}
-            fontScale={fontScale}
-            landscape={landscape}
-            last={i === list.length - 1}
-          />
-        ))
+        list.flatMap((p, i) =>
+          Array.from({ length: copies }, (_, c) => (
+            <Sheet
+              key={`${p.id}-${c}`}
+              form={form}
+              patient={p}
+              guide={guide}
+              dx={dx}
+              dy={dy}
+              fontScale={fontScale}
+              landscape={landscape}
+              last={i === list.length - 1 && c === copies - 1}
+            />
+          )),
+        )
       )}
     </div>
   );
