@@ -218,7 +218,7 @@ export function PatientForm({ patient }: { patient?: Patient }) {
             <Input value={form.age} onChange={set("age")} dir="ltr" inputMode="numeric" />
           </Field>
           <Field label={t("dob")}>
-            <Input type="date" value={form.dob} onChange={set("dob")} dir="ltr" />
+            <Input type="date" value={form.dob} onChange={setDob} dir="ltr" />
           </Field>
           <Field label={t("doa")}>
             <Input value={form.doa} onChange={set("doa")} dir="ltr" placeholder="YYYY-MM-DD" />
