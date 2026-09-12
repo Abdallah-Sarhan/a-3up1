@@ -23,6 +23,33 @@ export function PatientForm({ patient }: { patient?: Patient }) {
 
   useEffect(() => () => clearTimeout(suggestTimer.current), []);
 
+  // Auto-calculate age when date of birth is known
+  useEffect(() => {
+    if (!form.dob) return;
+    const calc = calculateAge(form.dob);
+    if (calc && calc !== form.age) {
+      setForm((f) => ({ ...f, age: calc }));
+    }
+  }, [form.dob]);
+
+  function calculateAge(dob: string): string {
+    if (!dob) return "";
+    const birth = new Date(dob);
+    if (isNaN(birth.getTime())) return "";
+    const today = new Date();
+    let years = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      years--;
+    }
+    return String(years);
+  }
+
+  function setDob(e: React.ChangeEvent<HTMLInputElement>) {
+    const dob = e.target.value;
+    setForm((f) => ({ ...f, dob, age: calculateAge(dob) }));
+  }
+
   // Live suggestions (prefix search) while typing file no / civil id
   function suggest(key: "fileNo" | "cid", value: string) {
     const v = value.trim();
