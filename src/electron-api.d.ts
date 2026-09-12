@@ -7,6 +7,8 @@ declare global {
       reportError: (message: string) => void;
       probeOk?: () => void;
       heartbeat: () => void;
+      loadData?: () => Promise<string | null>;
+      saveData?: (json: string) => Promise<boolean>;
     };
 
   }
