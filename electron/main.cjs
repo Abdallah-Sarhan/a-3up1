@@ -7,6 +7,7 @@ const ROOT = path.join(__dirname, "..", "dist-electron");
 const INDEX = path.join(ROOT, "electron.html");
 const PROBE = path.join(__dirname, "probe.html");
 const DIAGNOSTIC_NAME = "ward39-diagnostics.log";
+const DATA_NAME = "ward39-data.json";
 const APP_URL = "app://ward39/electron.html";
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,10 @@ protocol.registerSchemesAsPrivileged([
 
 function diagnosticPath() {
   return path.join(app.getPath("userData"), DIAGNOSTIC_NAME);
+}
+
+function dataPath() {
+  return path.join(app.getPath("userData"), DATA_NAME);
 }
 
 function recordDiagnostic(message) {
@@ -254,6 +259,29 @@ app.whenReady().then(() => {
   });
   ipcMain.on("ward39:heartbeat", () => {
     lastHeartbeat = Date.now();
+  });
+
+  // Durable, file-backed copy of the whole registry. Chromium can drop or evict
+  // its own IndexedDB store (or lose the last writes on an abrupt shutdown), so
+  // every change is also mirrored to a plain JSON file under userData.
+  ipcMain.handle("ward39:load-data", () => {
+    try {
+      return fs.readFileSync(dataPath(), "utf8");
+    } catch {
+      return null;
+    }
+  });
+  ipcMain.handle("ward39:save-data", (_event, json) => {
+    try {
+      fs.mkdirSync(app.getPath("userData"), { recursive: true });
+      const tmp = `${dataPath()}.tmp`;
+      fs.writeFileSync(tmp, String(json), "utf8");
+      fs.renameSync(tmp, dataPath()); // atomic: never a half-written registry
+      return true;
+    } catch (err) {
+      recordDiagnostic(`data save failed: ${String(err)}`);
+      return false;
+    }
   });
 
   recordDiagnostic("app started");

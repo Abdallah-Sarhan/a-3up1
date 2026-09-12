@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import seedData from "@/data/seed-patients.json";
+import { restoreFromFileIfNewer, startFileBackup } from "@/lib/persist";
 
 export interface Patient {
   id?: number;
@@ -286,10 +287,18 @@ export const dbReady: Promise<void> =
     : (async () => {
         void requestPersistence();
         try {
+          // Desktop: bring back the file-backed copy first, so a wiped or stale
+          // IndexedDB store never loses new patients or discharges.
+          await restoreFromFileIfNewer(db);
           await seedIfNeeded();
           await dischargeNonCurrentOnce();
         } catch (err) {
           console.error("db init failed", err);
+        }
+        try {
+          startFileBackup(db);
+        } catch (err) {
+          console.error("file backup unavailable", err);
         }
       })();
 

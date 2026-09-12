@@ -5,4 +5,6 @@ contextBridge.exposeInMainWorld("ward39Desktop", {
   reportError: (message) => ipcRenderer.send("ward39:renderer-error", String(message).slice(0, 2000)),
   probeOk: () => ipcRenderer.send("ward39:probe-ok"),
   heartbeat: () => ipcRenderer.send("ward39:heartbeat"),
+  loadData: () => ipcRenderer.invoke("ward39:load-data"),
+  saveData: (json) => ipcRenderer.invoke("ward39:save-data", String(json)),
 });
