@@ -109,13 +109,24 @@ export async function pushPatientsToCloud(db: Dexie): Promise<void> {
   const local = ((await db.table("patients").toArray()) as Patient[]).filter(
     (p) => p.fileNo?.trim(),
   );
-  const rows = local.map(toRow);
+  // One row per file number: the registry can hold repeats, and the cloud table
+  // rejects a batch that touches the same file number twice.
+  const byFileNo = new Map<string, Row>();
+  for (const p of local) {
+    const row = toRow(p);
+    const seen = byFileNo.get(row.file_no);
+    if (!seen || (row.updated_at ?? 0) >= (seen.updated_at ?? 0)) byFileNo.set(row.file_no, row);
+  }
+  const rows = [...byFileNo.values()];
   for (let i = 0; i < rows.length; i += 200) {
     const chunk = rows.slice(i, i + 200);
     const { error } = await supabase
       .from("patients")
       .upsert(chunk as never[], { onConflict: "file_no" });
-    if (error) return;
+    if (error) {
+      console.error("cloud sync push failed", error);
+      return;
+    }
   }
   const keep = rows.map((r) => r.file_no);
   if (keep.length) {
