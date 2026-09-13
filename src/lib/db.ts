@@ -300,7 +300,17 @@ export const dbReady: Promise<void> =
         } catch (err) {
           console.error("file backup unavailable", err);
         }
+        // Shared cloud copy: pull what other devices saved, then mirror local
+        // changes so the published link always shows the same registry.
+        try {
+          const { pullPatientsFromCloud, startCloudSync } = await import("@/lib/cloud-sync");
+          await pullPatientsFromCloud(db);
+          startCloudSync(db);
+        } catch (err) {
+          console.error("cloud sync unavailable", err);
+        }
       })();
+
 
 
 export function emptyPatient(): Omit<Patient, "id"> {
