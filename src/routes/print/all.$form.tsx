@@ -58,7 +58,7 @@ function Sheet({
           ...(breakStyle ?? {}),
         }}
       >
-        {(guide || printMode === "white") ? (
+        {(printMode === "white" || (guide && printMode === "form")) ? (
           <img
             src={form.template}
             alt=""
@@ -132,7 +132,7 @@ function BatchPrintPage() {
     });
 
   return (
-    <div className="min-h-screen bg-muted py-6 print:bg-white print:py-0">
+    <div className={`min-h-screen bg-muted py-6 print:bg-white print:py-0 ${printMode === "form" ? "print-form-only" : ""}`}>
       <style>{`@media print { @page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: ${
         form.template ? "0" : "8mm"
       }; } }`}</style>
