@@ -135,7 +135,7 @@ function BatchPrintPage() {
     <div className={`min-h-screen bg-muted py-6 print:bg-white print:py-0 ${printMode === "form" ? "print-form-only" : ""}`}>
       <style>{`@media print { @page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: ${
         form.template ? "0" : "8mm"
-      }; } .print-form-only table, .print-form-only th, .print-form-only td { border-color: transparent !important; background: transparent !important; box-shadow: none !important; } .print-form-only img { visibility: hidden !important; } .print-form-only h1, .print-form-only h2, .print-form-only h3 { visibility: hidden !important; } }`}</style>
+      }; } .print-form-only table, .print-form-only th, .print-form-only td { border-color: transparent !important; background: transparent !important; box-shadow: none !important; }  }`}</style>
 
       <div className="mx-auto mb-4 max-w-[297mm] px-4 print:hidden">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
