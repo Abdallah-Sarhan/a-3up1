@@ -68,11 +68,13 @@ export function PrintShell({
           </Link>
         )}
         <span className="text-sm font-medium text-muted-foreground">{title}</span>
-        <fieldset className="flex flex-wrap items-center gap-3 rounded-md border border-input px-3 py-2 text-sm">
-          <legend className="px-1 font-medium">Print option</legend>
-          <label className="flex items-center gap-2"><input type="radio" name="print-mode" checked={printMode === "white"} onChange={() => setPrintMode("white")} />Print on White Paper</label>
-          <label className="flex items-center gap-2"><input type="radio" name="print-mode" checked={printMode === "form"} onChange={() => setPrintMode("form")} />Print on Form</label>
-        </fieldset>
+        {!pathname.endsWith("/sbar") ? (
+          <fieldset className="flex flex-wrap items-center gap-3 rounded-md border border-input px-3 py-2 text-sm">
+            <legend className="px-1 font-medium">Print option</legend>
+            <label className="flex items-center gap-2"><input type="radio" name="print-mode" checked={printMode === "white"} onChange={() => setPrintMode("white")} />Print on White Paper</label>
+            <label className="flex items-center gap-2"><input type="radio" name="print-mode" checked={printMode === "form"} onChange={() => setPrintMode("form")} />Print on Form</label>
+          </fieldset>
+        ) : null}
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={ls} onChange={(e) => setLs(e.target.checked)} />
           {lang === "ar" ? "ورقة أفقية (Landscape)" : "Landscape page"}
