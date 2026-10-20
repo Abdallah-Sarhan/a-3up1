@@ -45,7 +45,7 @@ export function PrintShell({
 
   return (
     <div className={`min-h-screen bg-muted py-6 print:bg-white print:py-0 ${printMode === "form" ? "print-data-only" : ""}`}>
-      <style>{`@media print { .print-data-only table, .print-data-only th, .print-data-only td { border-color: transparent !important; background: transparent !important; box-shadow: none !important; } .print-data-only img { visibility: hidden !important; } .print-data-only h1, .print-data-only h2, .print-data-only h3 { visibility: hidden !important; } }`}</style>
+      <style>{`@media print { .print-data-only table, .print-data-only th, .print-data-only td { border-color: transparent !important; background: transparent !important; box-shadow: none !important; }  }`}</style>
       <style>{`@media print { @page { size: A4 ${ls ? "landscape" : "portrait"}; margin: 8mm; } }`}</style>
       <div
         className={`mx-auto mb-4 flex flex-wrap items-center justify-between gap-3 px-4 print:hidden ${
