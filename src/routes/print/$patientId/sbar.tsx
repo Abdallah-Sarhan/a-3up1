@@ -26,6 +26,7 @@ const SHIFT_ROWS: Array<{ key: string; label: string }> = [
 function SbarPrint() {
   const { id, patient } = usePrintPatient();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [printMode, setPrintMode] = useState<"full" | "data">("full");
   const all = useLiveQuery(() => db.sbar.where("patientId").equals(id).sortBy("date"), [id]);
   const entries = (all ?? []).filter((e) => e.date === date);
   const availableDates = [...new Set((all ?? []).map((e) => e.date))].sort().reverse();
@@ -36,6 +37,13 @@ function SbarPrint() {
     <PrintShell title="Hand Over Sheet (SBAR)" patient={patient} landscape>
       {patient && (
         <>
+          <div className="mx-auto mb-3 flex max-w-2xl flex-wrap items-center justify-center gap-3 print:hidden">
+            <fieldset className="flex flex-wrap items-center gap-3 rounded-md border border-input px-3 py-2 font-sans text-sm">
+              <legend className="px-1 font-medium">Print option</legend>
+              <label className="flex items-center gap-2"><input type="radio" name="sbar-print-mode" checked={printMode === "full"} onChange={() => setPrintMode("full")} /> Full form with design and data</label>
+              <label className="flex items-center gap-2"><input type="radio" name="sbar-print-mode" checked={printMode === "data"} onChange={() => setPrintMode("data")} /> Patient/SBAR data only (pre-printed form)</label>
+            </fieldset>
+          </div>
           <div className="mx-auto mb-4 flex max-w-xs items-center gap-2 print:hidden">
             <label className="font-sans text-sm font-medium">Date:</label>
             <input
@@ -52,9 +60,9 @@ function SbarPrint() {
             </datalist>
           </div>
 
-          <div className="border-2 border-black">
-            {/* Logo + title band */}
-            <div className="flex items-center justify-between px-2 py-1">
+          <div className={printMode === "full" ? "border-2 border-black" : "border-2 border-transparent"}>
+            {/* Keep the original layout dimensions for overlay printing on pre-printed SBAR paper. */}
+            <div className={`flex items-center justify-between px-2 py-1 ${printMode === "data" ? "invisible" : ""}`}>
               <img src={logoKcmh.url} alt="Kuwait Center for Mental Health" className="h-14 w-auto" />
               <h1 className="text-lg font-bold underline">Hand Over Sheet(SBAR)</h1>
               <img src={logoMoh.url} alt="Ministry of Health" className="h-14 w-auto" />
@@ -64,24 +72,24 @@ function SbarPrint() {
             <table className="w-full border-collapse text-[11px]" style={{ tableLayout: "fixed" }}>
               <tbody>
                 <tr>
-                  <td rowSpan={2} className="w-[7%] border border-black px-1 py-1 text-center align-middle font-bold">
-                    DATE
+                  <td rowSpan={2} className={`w-[7%] border px-1 py-1 text-center align-middle font-bold ${printMode === "full" ? "border-black" : "border-transparent"}`}>
+                    <span className={printMode === "data" ? "invisible" : ""}>DATE</span>
                     <div className="font-normal">{date}</div>
                   </td>
-                  <HCell label="Name:" value={patient.name} width="22%" />
-                  <HCell label="FILE#" value={patient.fileNo} width="17%" />
-                  <HCell label="DOB/AGE:" value={[patient.dob, patient.age].filter(Boolean).join(" / ")} width="19%" />
-                  <td className="w-[27%] border border-black px-1 py-1 text-center font-bold">Diagnosis</td>
-                  <td rowSpan={2} className="w-[8%] border border-black px-1 py-1 text-center align-middle font-bold">
-                    Ward:39
+                  <HCell label="Name:" value={patient.name} width="22%" dataOnly={printMode === "data"} />
+                  <HCell label="FILE#" value={patient.fileNo} width="17%" dataOnly={printMode === "data"} />
+                  <HCell label="DOB/AGE:" value={[patient.dob, patient.age].filter(Boolean).join(" / ")} width="19%" dataOnly={printMode === "data"} />
+                  <td className={`w-[27%] border px-1 py-1 text-center font-bold ${printMode === "full" ? "border-black" : "border-transparent"}`}><span className={printMode === "data" ? "invisible" : ""}>Diagnosis</span></td>
+                  <td rowSpan={2} className={`w-[8%] border px-1 py-1 text-center align-middle font-bold ${printMode === "full" ? "border-black" : "border-transparent"}`}>
+                    <span className={printMode === "data" ? "invisible" : ""}>Ward:39</span>
                   </td>
                 </tr>
                 <tr>
-                  <HCell label="CID" value={patient.cid} />
-                  <HCell label="D.O.A:" value={patient.doa} />
-                  <HCell label="Nationality" value={patient.nationality} />
-                  <td className="border border-black px-1 py-1 text-center font-bold">
-                    {patient.diagnosis?.toUpperCase() || "—"}
+                  <HCell label="CID" value={patient.cid} dataOnly={printMode === "data"} />
+                  <HCell label="D.O.A:" value={patient.doa} dataOnly={printMode === "data"} />
+                  <HCell label="Nationality" value={patient.nationality} dataOnly={printMode === "data"} />
+                  <td className={`border px-1 py-1 text-center font-bold ${printMode === "full" ? "border-black" : "border-transparent"}`}>
+                    {patient.diagnosis?.toUpperCase() || (printMode === "full" ? "—" : "")}
                   </td>
                 </tr>
               </tbody>
@@ -91,12 +99,12 @@ function SbarPrint() {
             <table className="w-full border-collapse text-[11px]" style={{ tableLayout: "fixed" }}>
               <thead>
                 <tr>
-                  <th className="w-[7%] border border-black px-1 py-0.5">Shift</th>
-                  <th className="w-[21%] border border-black px-1 py-0.5">Situation</th>
-                  <th className="w-[18%] border border-black px-1 py-0.5">Background</th>
-                  <th className="w-[21%] border border-black px-1 py-0.5">Assessment</th>
-                  <th className="w-[24%] border border-black px-1 py-0.5">Recommendation</th>
-                  <th className="w-[9%] border border-black px-1 py-0.5">Signature</th>
+                  <th className={`w-[7%] border px-1 py-0.5 ${printMode === "full" ? "border-black" : "border-transparent"}`}><span className={printMode === "data" ? "invisible" : ""}>Shift</span></th>
+                  <th className={`w-[21%] border px-1 py-0.5 ${printMode === "full" ? "border-black" : "border-transparent"}`}><span className={printMode === "data" ? "invisible" : ""}>Situation</span></th>
+                  <th className={`w-[18%] border px-1 py-0.5 ${printMode === "full" ? "border-black" : "border-transparent"}`}><span className={printMode === "data" ? "invisible" : ""}>Background</span></th>
+                  <th className={`w-[21%] border px-1 py-0.5 ${printMode === "full" ? "border-black" : "border-transparent"}`}><span className={printMode === "data" ? "invisible" : ""}>Assessment</span></th>
+                  <th className={`w-[24%] border px-1 py-0.5 ${printMode === "full" ? "border-black" : "border-transparent"}`}><span className={printMode === "data" ? "invisible" : ""}>Recommendation</span></th>
+                  <th className={`w-[9%] border px-1 py-0.5 ${printMode === "full" ? "border-black" : "border-transparent"}`}><span className={printMode === "data" ? "invisible" : ""}>Signature</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -104,14 +112,14 @@ function SbarPrint() {
                   const e = byShift(key);
                   return (
                     <tr key={key}>
-                      <td className="h-[52mm] border border-black px-1 py-1 text-center align-middle text-[11px] font-bold whitespace-pre-line">
-                        {label}
+                      <td className={`h-[52mm] border px-1 py-1 text-center align-middle text-[11px] font-bold whitespace-pre-line ${printMode === "full" ? "border-black" : "border-transparent"}`}>
+                        <span className={printMode === "data" ? "invisible" : ""}>{label}</span>
                       </td>
-                      <BCell>{e?.situation}</BCell>
-                      <BCell>{e?.background}</BCell>
-                      <BCell>{e?.assessment}</BCell>
-                      <BCell>{e?.recommendation}</BCell>
-                      <BCell>{e?.signature}</BCell>
+                      <BCell dataOnly={printMode === "data"}>{e?.situation}</BCell>
+                      <BCell dataOnly={printMode === "data"}>{e?.background}</BCell>
+                      <BCell dataOnly={printMode === "data"}>{e?.assessment}</BCell>
+                      <BCell dataOnly={printMode === "data"}>{e?.recommendation}</BCell>
+                      <BCell dataOnly={printMode === "data"}>{e?.signature}</BCell>
                     </tr>
                   );
                 })}
@@ -124,17 +132,17 @@ function SbarPrint() {
   );
 }
 
-function HCell({ label, value, width }: { label: string; value: string; width?: string }) {
+function HCell({ label, value, width, dataOnly = false }: { label: string; value: string; width?: string; dataOnly?: boolean }) {
   return (
-    <td className="border border-black px-1 py-1 align-top" style={width ? { width } : undefined}>
-      <span className="font-bold">{label} </span>
-      <span>{value || "—"}</span>
+    <td className={`border px-1 py-1 align-top ${dataOnly ? "border-transparent" : "border-black"}`} style={width ? { width } : undefined}>
+      <span className={`font-bold ${dataOnly ? "invisible" : ""}`}>{label} </span>
+      <span>{value || (dataOnly ? "" : "—")}</span>
     </td>
   );
 }
 
-function BCell({ children }: { children: string | undefined }) {
+function BCell({ children, dataOnly = false }: { children: string | undefined; dataOnly?: boolean }) {
   return (
-    <td className="border border-black px-1.5 py-1 align-top text-[11px] whitespace-pre-wrap">{children ?? ""}</td>
+    <td className={`border px-1.5 py-1 align-top text-[11px] whitespace-pre-wrap ${dataOnly ? "border-transparent" : "border-black"}`}>{children ?? ""}</td>
   );
 }
