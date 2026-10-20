@@ -31,6 +31,7 @@ function Sheet({
   fontScale,
   landscape,
   last,
+  printMode,
 }: {
   form: PrintFormDef;
   patient: Patient;
@@ -40,6 +41,7 @@ function Sheet({
   fontScale: number;
   landscape: boolean;
   last: boolean;
+  printMode: "white" | "form";
 }) {
   const breakStyle = last ? undefined : ({ breakAfter: "page", pageBreakAfter: "always" } as const);
 
@@ -96,6 +98,7 @@ function BatchPrintPage() {
   const form = getPrintForm(formKey);
   const patients = useActivePatients();
   const [guide, setGuide] = useState(false);
+  const [printMode, setPrintMode] = useState<"white" | "form">("white");
   const [copies, setCopies] = useState(1);
   const [dx, setDx] = useState(0);
   const [dy, setDy] = useState(0);
@@ -155,6 +158,7 @@ function BatchPrintPage() {
               {lang === "ar" ? "ورقة أفقية (Landscape)" : "Landscape page"}
             </label>
           )}
+          <fieldset className="flex flex-wrap items-center gap-3 rounded-md border border-input px-3 py-2 text-sm"><legend className="px-1 font-medium">Print option</legend><label className="flex items-center gap-2"><input type="radio" name="batch-print-mode" checked={printMode === "white"} onChange={() => setPrintMode("white")} />Print on White Paper</label><label className="flex items-center gap-2"><input type="radio" name="batch-print-mode" checked={printMode === "form"} onChange={() => setPrintMode("form")} />Print on Form</label></fieldset>
           {form.template ? (
             <>
               <label className="flex items-center gap-2 text-sm">
@@ -242,6 +246,7 @@ function BatchPrintPage() {
               form={form}
               patient={p}
               guide={guide}
+              printMode={printMode}
               dx={dx}
               dy={dy}
               fontScale={fontScale}
