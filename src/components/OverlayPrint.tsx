@@ -133,6 +133,7 @@ export function OverlayPrintPage({
   const { t, lang } = useLang();
   const { patientId, patient } = usePrintPatientData();
   const [guide, setGuide] = useState(true);
+  const [printMode, setPrintMode] = useState<"white" | "form">("white");
   const [dx, setDx] = useState(0);
   const [dy, setDy] = useState(0);
   const [fontScale, setFontScale] = useState(1);
@@ -160,6 +161,11 @@ export function OverlayPrintPage({
               {t("back")}
             </Button>
           </Link>
+          <fieldset className="flex flex-wrap items-center gap-3 rounded-md border border-input px-3 py-2 text-sm">
+            <legend className="px-1 font-medium">Print option</legend>
+            <label className="flex items-center gap-2"><input type="radio" name="overlay-print-mode" checked={printMode === "white"} onChange={() => setPrintMode("white")} />Print on White Paper</label>
+            <label className="flex items-center gap-2"><input type="radio" name="overlay-print-mode" checked={printMode === "form"} onChange={() => setPrintMode("form")} />Print on Form</label>
+          </fieldset>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={guide} onChange={(e) => setGuide(e.target.checked)} />
             {lang === "ar" ? "عرض النموذج كخلفية (لا يُطبع)" : "Show form as background (not printed)"}
@@ -225,12 +231,12 @@ export function OverlayPrintPage({
         className="relative mx-auto bg-white text-black shadow-md print:shadow-none"
         style={{ width: "210mm", height: "297mm", fontFamily: "Arial, Helvetica, sans-serif" }}
       >
-        {guide ? (
+        {printMode === "white" || guide ? (
           <img
             src={template}
             alt=""
             aria-hidden
-            className="absolute inset-0 h-full w-full object-fill opacity-30 print:hidden"
+            className={`absolute inset-0 h-full w-full object-fill ${printMode === "white" ? "opacity-100" : "opacity-30 print:hidden"}`}
           />
         ) : null}
         <div className="absolute inset-0" style={{ transform: `translate(${dx}mm, ${dy}mm)` }}>

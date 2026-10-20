@@ -40,8 +40,8 @@ function SbarPrint() {
           <div className="mx-auto mb-3 flex max-w-2xl flex-wrap items-center justify-center gap-3 print:hidden">
             <fieldset className="flex flex-wrap items-center gap-3 rounded-md border border-input px-3 py-2 font-sans text-sm">
               <legend className="px-1 font-medium">Print option</legend>
-              <label className="flex items-center gap-2"><input type="radio" name="sbar-print-mode" checked={printMode === "full"} onChange={() => setPrintMode("full")} /> Full form with design and data</label>
-              <label className="flex items-center gap-2"><input type="radio" name="sbar-print-mode" checked={printMode === "data"} onChange={() => setPrintMode("data")} /> Patient/SBAR data only (pre-printed form)</label>
+              <label className="flex items-center gap-2"><input type="radio" name="sbar-print-mode" checked={printMode === "full"} onChange={() => setPrintMode("full")} /> Print on White Paper</label>
+              <label className="flex items-center gap-2"><input type="radio" name="sbar-print-mode" checked={printMode === "data"} onChange={() => setPrintMode("data")} /> Print on Form</label>
             </fieldset>
           </div>
           <div className="mx-auto mb-4 flex max-w-xs items-center gap-2 print:hidden">

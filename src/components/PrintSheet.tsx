@@ -30,6 +30,7 @@ export function PrintShell({
   const isNcpPrint = pathname.startsWith("/print/") && pathname.endsWith("/careplan");
   // Page orientation is user-switchable; defaults to the form's own setting.
   const [ls, setLs] = useState(!!landscape);
+  const [printMode, setPrintMode] = useState<"white" | "form">("white");
 
   if (patient === undefined) {
     return <p className="p-10 text-center text-muted-foreground">{t("loading")}</p>;
@@ -43,7 +44,8 @@ export function PrintShell({
   }
 
   return (
-    <div className="min-h-screen bg-muted py-6 print:bg-white print:py-0">
+    <div className={`min-h-screen bg-muted py-6 print:bg-white print:py-0 ${printMode === "form" ? "print-data-only" : ""}`}>
+      <style>{`@media print { .print-data-only table, .print-data-only th, .print-data-only td { border-color: transparent !important; background: transparent !important; box-shadow: none !important; }  }`}</style>
       <style>{`@media print { @page { size: A4 ${ls ? "landscape" : "portrait"}; margin: 8mm; } }`}</style>
       <div
         className={`mx-auto mb-4 flex flex-wrap items-center justify-between gap-3 px-4 print:hidden ${
@@ -66,6 +68,13 @@ export function PrintShell({
           </Link>
         )}
         <span className="text-sm font-medium text-muted-foreground">{title}</span>
+        {!pathname.endsWith("/sbar") ? (
+          <fieldset className="flex flex-wrap items-center gap-3 rounded-md border border-input px-3 py-2 text-sm">
+            <legend className="px-1 font-medium">Print option</legend>
+            <label className="flex items-center gap-2"><input type="radio" name="print-mode" checked={printMode === "white"} onChange={() => setPrintMode("white")} />Print on White Paper</label>
+            <label className="flex items-center gap-2"><input type="radio" name="print-mode" checked={printMode === "form"} onChange={() => setPrintMode("form")} />Print on Form</label>
+          </fieldset>
+        ) : null}
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={ls} onChange={(e) => setLs(e.target.checked)} />
           {lang === "ar" ? "ورقة أفقية (Landscape)" : "Landscape page"}
