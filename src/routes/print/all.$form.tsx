@@ -58,12 +58,12 @@ function Sheet({
           ...(breakStyle ?? {}),
         }}
       >
-        {guide ? (
+        {(guide || printMode === "white") ? (
           <img
             src={form.template}
             alt=""
             aria-hidden
-            className="absolute inset-0 h-full w-full object-fill opacity-30 print:hidden"
+            className={`absolute inset-0 h-full w-full object-fill ${printMode === "white" ? "opacity-100" : "opacity-30 print:hidden"}`}
           />
         ) : null}
         <div className="absolute inset-0" style={{ transform: `translate(${dx}mm, ${dy}mm)` }}>
